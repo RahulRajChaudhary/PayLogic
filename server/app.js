@@ -9,6 +9,10 @@ const companyRouter = require('./routes/company');
 const employeesRouter = require('./routes/employees');
 const departmentsRouter = require('./routes/departments');
 const usersRouter = require('./routes/users');
+const tagsRouter = require('./routes/tags');
+const attendanceRouter = require('./routes/attendance');
+const timeOffRouter = require('./routes/timeOff');
+const contractsRouter = require('./routes/contracts');
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -22,6 +26,10 @@ app.use('/company', companyRouter);
 app.use('/employees', employeesRouter);
 app.use('/departments', departmentsRouter);
 app.use('/users', usersRouter);
+app.use('/tags', tagsRouter);
+app.use('/attendance', attendanceRouter);
+app.use('/time-off', timeOffRouter);
+app.use('/contracts', contractsRouter);
 
 app.listen(port, () => {
   console.log(`Server started on port ${port}`);

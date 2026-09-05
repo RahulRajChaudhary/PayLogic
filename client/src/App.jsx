@@ -4,7 +4,10 @@ import CompanySetup from './pages/CompanySetup';
 import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
 import EmployeeForm from './pages/EmployeeForm';
+import Contracts from './pages/Contracts';
 import UserManagement from './pages/UserManagement';
+import Attendance from './pages/Attendance';
+import TimeOff from './pages/TimeOff';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
 import { HR_ROLES } from './constants/roles';
@@ -12,7 +15,8 @@ import { HR_ROLES } from './constants/roles';
 function RootRedirect() {
   const { user, loading } = useAuth();
   if (loading) return null;
-  return <Navigate to={user ? '/dashboard' : '/login'} replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={HR_ROLES.includes(user.role) ? '/employees' : '/dashboard'} replace />;
 }
 
 function App() {
@@ -30,6 +34,22 @@ function App() {
         }
       />
       <Route
+        path="/attendance"
+        element={
+          <ProtectedRoute>
+            <Attendance />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/time-off"
+        element={
+          <ProtectedRoute>
+            <TimeOff />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/employees"
         element={
           <ProtectedRoute roles={HR_ROLES}>
@@ -42,6 +62,14 @@ function App() {
         element={
           <ProtectedRoute roles={HR_ROLES}>
             <EmployeeForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/contracts"
+        element={
+          <ProtectedRoute roles={HR_ROLES}>
+            <Contracts />
           </ProtectedRoute>
         }
       />

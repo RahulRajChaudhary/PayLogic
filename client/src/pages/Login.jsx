@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { HR_ROLES } from '../constants/roles';
 
 // Mirrors the demo cast seeded in server/db/seed.js (shared password).
 // Rendered only under `npm run dev` — see import.meta.env.DEV gate below.
@@ -58,8 +59,8 @@ export default function Login() {
     setError('');
     setSubmitting(true);
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const loggedInUser = await login(email, password);
+      navigate(HR_ROLES.includes(loggedInUser.role) ? '/employees' : '/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {

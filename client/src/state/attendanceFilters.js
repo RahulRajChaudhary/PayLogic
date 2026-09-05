@@ -1,0 +1,23 @@
+function todayStr() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+// Module-scoped (not React state, not localStorage/sessionStorage) so the HR attendance
+// filters survive navigating away from and back to the Attendance page within the same
+// session, but naturally reset on a hard refresh (the module re-evaluates from scratch).
+// logout() calls resetAttendanceFilters() explicitly so a new login doesn't inherit stale
+// filters from whoever used this browser tab before.
+export let hrFilterState = {
+  date: todayStr(),
+  departmentId: '',
+};
+
+export function setHrFilterState(next) {
+  hrFilterState = next;
+}
+
+export function resetAttendanceFilters() {
+  hrFilterState = { date: todayStr(), departmentId: '' };
+}

@@ -24,17 +24,21 @@ export default function Header() {
   const { user, logout } = useAuth();
   if (!user) return null;
 
+  const isHr = HR_ROLES.includes(user.role);
+  const isAdmin = ADMIN_ROLES.includes(user.role);
+
   return (
     <header className="bg-navy-950 border-b border-navy-800 sticky top-0 z-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-6 flex-wrap">
           <span className="font-bold text-cream-50 text-lg tracking-tight">Paylogic</span>
           <nav className="flex items-center gap-1 flex-wrap">
-            <NavLink to="/dashboard">
-              {HR_ROLES.includes(user.role) ? 'Dashboard' : 'My Profile'}
-            </NavLink>
-            {HR_ROLES.includes(user.role) && <NavLink to="/employees">Employees</NavLink>}
-            {ADMIN_ROLES.includes(user.role) && <NavLink to="/users">Users</NavLink>}
+            {isHr && <NavLink to="/employees">Employees</NavLink>}
+            {!isHr && <NavLink to="/dashboard">My Profile</NavLink>}
+            {isHr && <NavLink to="/contracts">Contracts</NavLink>}
+            <NavLink to="/attendance">{isHr ? 'Attendance' : 'My Attendance'}</NavLink>
+            <NavLink to="/time-off">{isHr ? 'Time Off' : 'My Time Off'}</NavLink>
+            {isAdmin && <NavLink to="/users">Users</NavLink>}
           </nav>
         </div>
         <div className="flex items-center gap-3">

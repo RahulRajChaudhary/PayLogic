@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { http } from '../api/http';
+import { resetAttendanceFilters } from '../state/attendanceFilters';
 
 const AuthContext = createContext(null);
 
@@ -24,6 +25,7 @@ export function AuthProvider({ children }) {
   async function logout() {
     await http.post('/auth/logout');
     setUser(null);
+    resetAttendanceFilters();
   }
 
   return (
