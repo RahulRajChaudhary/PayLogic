@@ -111,3 +111,15 @@ code {
 } */
 
 @import "tailwindcss";
+
+@theme {
+  --color-navy-950: #101a2c;
+  --color-navy-900: #16233a;
+  --color-navy-800: #1c2b42;
+  --color-cream-50: #f6efe4;
+  --color-cream-100: #efe6d4;
+  --color-gold-500: #c9862e;
+  --color-gold-600: #b4741f;
+  --color-ink: #1c1a16;
+  --color-muted: #7a7266;
+}

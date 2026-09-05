@@ -38,16 +38,16 @@ export default function CompanySetup() {
   }
 
   const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500';
-  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
+    'w-full rounded-lg border border-navy-950/15 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold-500';
+  const labelClass = 'block text-sm font-medium text-ink mb-1';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-10">
-      <div className="w-full max-w-lg bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <h1 className="text-2xl font-semibold text-slate-900 text-center">
+    <div className="min-h-screen flex items-center justify-center bg-cream-50 px-4 py-10">
+      <div className="w-full max-w-lg bg-white rounded-xl shadow-sm border border-navy-950/10 p-8">
+        <h1 className="text-2xl font-semibold text-ink text-center">
           Set Up Your Company
         </h1>
-        <p className="text-slate-500 text-center mt-1 mb-6">
+        <p className="text-muted text-center mt-1 mb-6">
           This runs once, the first time Paylogic starts.
         </p>
 
@@ -79,7 +79,7 @@ export default function CompanySetup() {
             </div>
           </div>
 
-          <hr className="border-slate-200" />
+          <hr className="border-navy-950/10" />
 
           <div>
             <label className={labelClass}>Admin Email</label>
@@ -100,7 +100,7 @@ export default function CompanySetup() {
               onChange={update('adminPassword')}
               className={inputClass}
             />
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-muted mt-1">
               At least 8 characters, with a letter and a number.
             </p>
           </div>
@@ -110,7 +110,7 @@ export default function CompanySetup() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-violet-700 text-white rounded-lg py-2 font-medium hover:bg-violet-800 disabled:opacity-50"
+            className="w-full bg-navy-950 text-cream-50 rounded-lg py-2 font-medium hover:bg-navy-800 disabled:opacity-50"
           >
             {submitting ? 'Setting up...' : 'Create Company & Admin Account'}
           </button>
