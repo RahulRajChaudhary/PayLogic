@@ -38,8 +38,6 @@ async function request(path, options = {}) {
 
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    // Only ever surface the server's intentional `error` field — never raw
-    // response bodies (e.g. HTML error pages) that could hint at internals.
     const fallback = res.status >= 500
       ? 'Something went wrong on our end. Please try again in a moment.'
       : 'Something went wrong. Please try again.';
