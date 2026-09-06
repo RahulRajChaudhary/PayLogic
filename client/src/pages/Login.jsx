@@ -4,8 +4,6 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { HR_ROLES } from '../constants/roles';
 
-// Mirrors the demo cast seeded in server/db/seed.js (shared password).
-// Rendered only under `npm run dev` — see import.meta.env.DEV gate below.
 const DEMO_PASSWORD = 'Demo@1234';
 const DEMO_ACCOUNTS = [
   { label: 'HR Manager', email: 'sara.khan@paylogic.demo' },
@@ -122,17 +120,17 @@ export default function Login() {
       </div>
 
       {/* Right — login form */}
-      <div className="flex-1 flex items-center justify-center bg-cream-50 px-4 py-12 overflow-y-auto">
-        <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-navy-950/10 p-8">
+      <div className="flex-1 flex items-center justify-center bg-cream-50 px-4 py-4">
+        <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-navy-950/10 p-6">
           <p className="text-xs font-semibold uppercase tracking-widest text-gold-600 text-center">
             Welcome back
           </p>
-          <h1 className="text-2xl font-black text-ink text-center mt-2">Log in to Paylogic</h1>
-          <p className="text-muted text-center mt-1 mb-6">
+          <h1 className="text-xl font-black text-ink text-center mt-1">Log in to Paylogic</h1>
+          <p className="text-muted text-center text-sm mt-1 mb-4">
             Sign in to continue to your workspace.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-ink mb-1">Work Email</label>
               <div className="relative">
@@ -142,7 +140,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-navy-950/15 pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  className="w-full rounded-lg border border-navy-950/15 pl-10 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
               </div>
             </div>
@@ -155,7 +153,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-navy-950/15 pl-10 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  className="w-full rounded-lg border border-navy-950/15 pl-10 pr-10 py-1.5 focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
                 <button
                   type="button"
@@ -181,7 +179,7 @@ export default function Login() {
           </form>
 
           {import.meta.env.DEV && (
-            <div className="mt-6 border-t border-navy-950/10 pt-4">
+            <div className="mt-4 border-t border-navy-950/10 pt-3">
               <p className="text-xs text-muted mb-2 text-center">Demo accounts (dev only)</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {DEMO_ACCOUNTS.map((acc) => (
@@ -198,7 +196,7 @@ export default function Login() {
             </div>
           )}
 
-          <p className="text-xs text-muted text-center mt-6">
+          <p className="text-xs text-muted text-center mt-3">
             Accounts are created by an administrator.
           </p>
         </div>

@@ -7,6 +7,11 @@ import { dashboardApi } from '../api/dashboard';
 import { departmentsApi } from '../api/departments';
 import StatCard from './ui/StatCard';
 import Spinner from './ui/Spinner';
+import ErrorBanner from './ui/ErrorBanner';
+import Pagination from './ui/Pagination';
+
+const DEPT_PAGE_SIZE = 8;
+const TIME_OFF_PAGE_SIZE = 5;
 
 function currentMonth() {
   const now = new Date();
@@ -44,18 +49,34 @@ export default function PayrollDashboard() {
   const [departments, setDepartments] = useState([]);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [deptPage, setDeptPage] = useState(1);
+  const [timeOffPage, setTimeOffPage] = useState(1);
 
   // limit: 100 — feeds the department filter dropdown, needs every department.
   useEffect(() => { departmentsApi.list({ limit: 100 }).then((res) => setDepartments(res.data)).catch(() => {}); }, []);
 
   function load() {
     setError('');
+    setDeptPage(1);
+    setTimeOffPage(1);
     const { periodStart, periodEnd } = monthToRange(month);
     dashboardApi.summary({ periodStart, periodEnd, departmentId: departmentId || undefined, employeeType: employeeType || undefined })
       .then(setData)
       .catch((err) => setError(err.message));
   }
   useEffect(load, [month, departmentId, employeeType]);
+
+  const departmentOverview = data?.departmentOverview ?? [];
+  const deptTotal = departmentOverview.length;
+  const deptTotalPages = Math.max(1, Math.ceil(deptTotal / DEPT_PAGE_SIZE));
+  const deptRows = departmentOverview.slice((deptPage - 1) * DEPT_PAGE_SIZE, deptPage * DEPT_PAGE_SIZE);
+  const deptPagination = { page: deptPage, limit: DEPT_PAGE_SIZE, total: deptTotal, totalPages: deptTotalPages };
+
+  const timeOffOverview = data?.timeOffOverview ?? [];
+  const timeOffTotal = timeOffOverview.length;
+  const timeOffTotalPages = Math.max(1, Math.ceil(timeOffTotal / TIME_OFF_PAGE_SIZE));
+  const timeOffRows = timeOffOverview.slice((timeOffPage - 1) * TIME_OFF_PAGE_SIZE, timeOffPage * TIME_OFF_PAGE_SIZE);
+  const timeOffPagination = { page: timeOffPage, limit: TIME_OFF_PAGE_SIZE, total: timeOffTotal, totalPages: timeOffTotalPages };
 
   const inputClass = 'rounded-lg border border-navy-950/15 px-3 py-2 text-sm bg-white';
 
@@ -81,8 +102,8 @@ export default function PayrollDashboard() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-      {!data && !error && <Spinner />}
+      {error && <div className="mb-4"><ErrorBanner message={error} onRetry={load} /></div>}
+      {!data && !error && <Spinner label="Loading dashboard..." />}
 
       {data && (
         <div className="space-y-6">
@@ -164,7 +185,7 @@ export default function PayrollDashboard() {
                   <tr><th className="py-1 font-medium">Type</th><th className="py-1 font-medium text-right">Appr.</th><th className="py-1 font-medium text-right">Pend.</th><th className="py-1 font-medium text-right">Bal.</th></tr>
                 </thead>
                 <tbody>
-                  {data.timeOffOverview.map((t) => (
+                  {timeOffRows.map((t) => (
                     <tr key={t.type} className="border-t border-navy-950/5">
                       <td className="py-1">{t.type}</td>
                       <td className="py-1 text-right tabular-nums">{t.approvedDays}</td>
@@ -174,6 +195,8 @@ export default function PayrollDashboard() {
                   ))}
                 </tbody>
               </table>
+              {timeOffTotal === 0 && <p className="text-sm text-muted py-3">No time off types to show.</p>}
+              <Pagination pagination={timeOffPagination} onPageChange={setTimeOffPage} />
             </Panel>
           </div>
 
@@ -183,7 +206,7 @@ export default function PayrollDashboard() {
                 <tr><th className="py-1.5 font-medium">Department</th><th className="py-1.5 font-medium text-right">Headcount</th><th className="py-1.5 font-medium text-right">Monthly Salary</th></tr>
               </thead>
               <tbody>
-                {data.departmentOverview.map((d) => (
+                {deptRows.map((d) => (
                   <tr key={d.department} className="border-t border-navy-950/5">
                     <td className="py-1.5">{d.department}</td>
                     <td className="py-1.5 text-right tabular-nums">{d.headcount}</td>
@@ -192,6 +215,8 @@ export default function PayrollDashboard() {
                 ))}
               </tbody>
             </table>
+            {deptTotal === 0 && <p className="text-sm text-muted py-3">No departments to show.</p>}
+            <Pagination pagination={deptPagination} onPageChange={setDeptPage} />
           </Panel>
         </div>
       )}

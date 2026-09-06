@@ -41,6 +41,26 @@ app.use('/payslips', payslipsRouter);
 app.use('/dashboard', dashboardRouter);
 app.use('/working-schedules', workingSchedulesRouter);
 
+// 404 for unmatched routes.
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Centralized error handler. Route handlers may throw errors carrying a
+// `status` (and safe `message`) for expected conditions — those are passed
+// through as-is. Anything else is an unexpected failure (DB errors, bugs,
+// etc.): log the full error server-side but only ever send the client a
+// generic message, never the raw error/stack, so internals can't leak.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const status = Number.isInteger(err.status) ? err.status : 500;
+  if (status >= 500) {
+    console.error(err);
+    return res.status(status).json({ error: 'Something went wrong on our end. Please try again in a moment.' });
+  }
+  res.status(status).json({ error: err.message || 'Something went wrong. Please try again.' });
+});
+
 app.listen(port, () => {
   console.log(`Server started on port ${port}`);
 });

@@ -10,11 +10,11 @@ export default function Pagination({ pagination, onPageChange }) {
   const to = Math.min(page * limit, total);
 
   return (
-    <div className="flex items-center justify-between mt-4 text-sm text-muted">
+    <div className="flex items-center justify-between mt-4 text-sm text-muted flex-wrap gap-2">
       <p>
         Showing {from}–{to} of {total}
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
