@@ -13,16 +13,6 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-const companySetupSchema = z.object({
-  name: z.string().min(1),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  country: z.string().optional(),
-  adminEmail: z.email(),
-  adminPassword: z.string().min(8).regex(/[A-Za-z]/).regex(/[0-9]/),
-});
-
 function hashPassword(password) {
   return bcrypt.hash(password, SALT_ROUNDS);
 }
@@ -96,7 +86,6 @@ async function revokeRefreshToken(rawToken) {
 
 module.exports = {
   loginSchema,
-  companySetupSchema,
   hashPassword,
   comparePassword,
   signAccessToken,

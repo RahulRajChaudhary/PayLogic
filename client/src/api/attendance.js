@@ -13,4 +13,5 @@ export const attendanceApi = {
     return http.get(`/attendance?${params.toString()}`);
   },
   update: (id, data) => http.put(`/attendance/${id}`, data),
+  count: (employeeId) => http.get(`/attendance/count?employee_id=${employeeId}`),
 };

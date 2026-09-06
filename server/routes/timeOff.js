@@ -4,7 +4,13 @@ const requireRole = require('../middleware/requireRole');
 const { getEmployeeByUserId } = require('../services/employees');
 const {
   listTypes,
+  createType,
+  updateType,
   getAllocations,
+  listAllocations,
+  createAllocation,
+  updateAllocation,
+  setAllocationStatus,
   createRequest,
   listRequests,
   cancelRequest,
@@ -97,6 +103,82 @@ router.post('/requests/:id/refuse', async (req, res) => {
     return res.status(404).json({ error: 'Request not found or not pending' });
   }
   res.json(request);
+});
+
+// --- Time Off Types (config) ---
+
+const UNITS = ['day', 'hour'];
+const APPROVALS = ['manager', 'officer'];
+
+function validateTypeBody(body) {
+  if (!body.name || !String(body.name).trim()) return 'Type name is required';
+  if (body.unit && !UNITS.includes(body.unit)) return `unit must be one of: ${UNITS.join(', ')}`;
+  if (body.approval && !APPROVALS.includes(body.approval)) return `approval must be one of: ${APPROVALS.join(', ')}`;
+  return null;
+}
+
+router.post('/types', async (req, res) => {
+  const error = validateTypeBody(req.body);
+  if (error) return res.status(400).json({ error });
+  try {
+    res.status(201).json(await createType(req.body));
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A time off type with that name already exists' });
+    throw err;
+  }
+});
+
+router.put('/types/:id', async (req, res) => {
+  const error = validateTypeBody(req.body);
+  if (error) return res.status(400).json({ error });
+  try {
+    const type = await updateType(req.params.id, req.body);
+    if (!type) return res.status(404).json({ error: 'Time off type not found' });
+    res.json(type);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A time off type with that name already exists' });
+    throw err;
+  }
+});
+
+// --- Allocations (config + approval) ---
+
+router.get('/allocations', async (req, res) => {
+  res.json(await listAllocations({ employeeId: req.query.employee_id, status: req.query.status }));
+});
+
+router.post('/allocations', async (req, res) => {
+  const { employee_id, type_id, allocated } = req.body;
+  if (!employee_id || !type_id || allocated == null) {
+    return res.status(400).json({ error: 'employee_id, type_id, and allocated are required' });
+  }
+  try {
+    res.status(201).json(await createAllocation(req.body));
+  } catch (err) {
+    if (err.code === 'ALLOCATION_EXISTS') return res.status(409).json({ error: err.message });
+    throw err;
+  }
+});
+
+router.put('/allocations/:id', async (req, res) => {
+  if (req.body.allocated == null) return res.status(400).json({ error: 'allocated is required' });
+  const allocation = await updateAllocation(req.params.id, req.body);
+  if (!allocation) return res.status(404).json({ error: 'Allocation not found' });
+  res.json(allocation);
+});
+
+router.post('/allocations/:id/approve', async (req, res) => {
+  const employee = await getEmployeeByUserId(req.user.id);
+  const allocation = await setAllocationStatus(req.params.id, 'approved', employee?.id ?? null);
+  if (!allocation) return res.status(404).json({ error: 'Allocation not found' });
+  res.json(allocation);
+});
+
+router.post('/allocations/:id/refuse', async (req, res) => {
+  const employee = await getEmployeeByUserId(req.user.id);
+  const allocation = await setAllocationStatus(req.params.id, 'refused', employee?.id ?? null);
+  if (!allocation) return res.status(404).json({ error: 'Allocation not found' });
+  res.json(allocation);
 });
 
 module.exports = router;

@@ -7,13 +7,15 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon app.js",
     "start": "node app.js",
-    "seed": "node db/seed.js"
+    "seed": "node db/seed.js",
+    "seed:fresh": "node db/seedFresh.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@faker-js/faker": "^10.6.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -21,6 +23,9 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.3",
+    "mathjs": "^15.2.0",
+    "nodemailer": "^10.0.0",
+    "pdfkit": "^0.20.2",
     "pg": "^8.23.0",
     "zod": "^4.5.4"
   },

@@ -3,10 +3,15 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { employeesApi } from '../api/employees';
 import { departmentsApi } from '../api/departments';
 import { tagsApi } from '../api/tags';
-import { GENDERS, MARITAL_STATUSES, WORKING_SCHEDULES } from '../constants/employeeOptions';
+import { workingSchedulesApi } from '../api/workingSchedules';
+import { contractsApi } from '../api/contracts';
+import { attendanceApi } from '../api/attendance';
+import { timeOffApi } from '../api/timeOff';
+import { GENDERS, MARITAL_STATUSES } from '../constants/employeeOptions';
 import EmployeeProfileHeader from '../components/EmployeeProfileHeader';
 import EmployeeAttendanceTab from '../components/EmployeeAttendanceTab';
 import EmployeeContractsTab from '../components/EmployeeContractsTab';
+import EmployeeTimeOffTab from '../components/EmployeeTimeOffTab';
 
 const EMPTY_FORM = {
   name: '',
@@ -26,7 +31,8 @@ const EMPTY_FORM = {
   date_of_birth: '',
   gender: '',
   marital_status: '',
-  working_schedule: '',
+  working_schedule_id: '',
+  bank_account: '',
   tags: [],
 };
 
@@ -40,15 +46,21 @@ export default function EmployeeForm() {
   const [employeeCode, setEmployeeCode] = useState('');
   const [departments, setDepartments] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const [newDeptName, setNewDeptName] = useState('');
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'attendance' ? 'attendance' : 'work');
+  const [counts, setCounts] = useState({ contracts: null, attendance: null, timeoff: null });
+  const initialTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    ['attendance', 'contracts', 'timeoff'].includes(initialTab) ? initialTab : 'work'
+  );
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     departmentsApi.list().then(setDepartments).catch(() => {});
     employeesApi.list().then(setEmployees).catch(() => {});
+    workingSchedulesApi.list().then(setSchedules).catch(() => {});
     tagsApi.list().then(setAvailableTags).catch(() => {});
   }, []);
 
@@ -74,10 +86,20 @@ export default function EmployeeForm() {
         date_of_birth: emp.date_of_birth ?? '',
         gender: emp.gender ?? '',
         marital_status: emp.marital_status ?? '',
-        working_schedule: emp.working_schedule ?? '',
+        working_schedule_id: emp.working_schedule_id ?? '',
+        bank_account: emp.bank_account ?? '',
         tags: emp.tags ?? [],
       });
     });
+  }, [id, isNew]);
+
+  // Smart-button counts (PDF §B2) — shown as badges on the Contracts/Attendance/Time Off
+  // tabs so their volume is visible without opening each one.
+  useEffect(() => {
+    if (isNew) return;
+    contractsApi.list({ employeeId: id }).then((rows) => setCounts((c) => ({ ...c, contracts: rows.length }))).catch(() => {});
+    attendanceApi.count(id).then(({ count }) => setCounts((c) => ({ ...c, attendance: count }))).catch(() => {});
+    timeOffApi.list({ employeeId: id }).then((rows) => setCounts((c) => ({ ...c, timeoff: rows.length }))).catch(() => {});
   }, [id, isNew]);
 
   function update(field) {
@@ -128,7 +150,8 @@ export default function EmployeeForm() {
       date_of_birth: form.date_of_birth || null,
       gender: form.gender || null,
       marital_status: form.marital_status || null,
-      working_schedule: form.working_schedule || null,
+      working_schedule_id: form.working_schedule_id ? Number(form.working_schedule_id) : null,
+      bank_account: form.bank_account || null,
       tags: form.tags,
     };
     try {
@@ -155,7 +178,7 @@ export default function EmployeeForm() {
 
   return (
     <div className="min-h-screen bg-cream-50 px-4 py-10">
-      <div className={`${['attendance', 'contracts'].includes(activeTab) ? 'max-w-4xl' : 'max-w-2xl'} mx-auto bg-white rounded-xl shadow-sm border border-navy-950/10 p-8`}>
+      <div className={`${['attendance', 'contracts', 'timeoff'].includes(activeTab) ? 'max-w-4xl' : 'max-w-2xl'} mx-auto bg-white rounded-xl shadow-sm border border-navy-950/10 p-8`}>
         <EmployeeProfileHeader
           employeeCode={employeeCode}
           status={form.status}
@@ -180,12 +203,17 @@ export default function EmployeeForm() {
             </button>
             {!isNew && (
               <button type="button" onClick={() => setActiveTab('attendance')} className={tabButtonClass('attendance')}>
-                Attendance
+                Attendance{counts.attendance != null && <CountBadge value={counts.attendance} />}
               </button>
             )}
             {!isNew && (
               <button type="button" onClick={() => setActiveTab('contracts')} className={tabButtonClass('contracts')}>
-                Contracts
+                Contracts{counts.contracts != null && <CountBadge value={counts.contracts} />}
+              </button>
+            )}
+            {!isNew && (
+              <button type="button" onClick={() => setActiveTab('timeoff')} className={tabButtonClass('timeoff')}>
+                Time Off{counts.timeoff != null && <CountBadge value={counts.timeoff} />}
               </button>
             )}
           </div>
@@ -249,10 +277,10 @@ export default function EmployeeForm() {
 
               <div>
                 <label className={labelClass}>Working Schedule</label>
-                <select value={form.working_schedule} onChange={update('working_schedule')} className={inputClass}>
+                <select value={form.working_schedule_id} onChange={update('working_schedule_id')} className={inputClass}>
                   <option value="">— None —</option>
-                  {WORKING_SCHEDULES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                  {schedules.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} ({Number(s.weekly_hours)}h/wk)</option>
                   ))}
                 </select>
               </div>
@@ -266,6 +294,16 @@ export default function EmployeeForm() {
                   <label className={labelClass}>Work Phone</label>
                   <input type="tel" value={form.work_phone} onChange={update('work_phone')} className={inputClass} />
                 </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Bank Account</label>
+                <input
+                  value={form.bank_account}
+                  onChange={update('bank_account')}
+                  className={inputClass}
+                  placeholder="For payroll — used to flag payslips with missing bank details"
+                />
               </div>
             </div>
           )}
@@ -337,9 +375,11 @@ export default function EmployeeForm() {
 
           {activeTab === 'contracts' && !isNew && <EmployeeContractsTab employeeId={id} />}
 
-          {!['attendance', 'contracts'].includes(activeTab) && error && <p className="text-sm text-red-600 mt-4">{error}</p>}
+          {activeTab === 'timeoff' && !isNew && <EmployeeTimeOffTab employeeId={id} />}
 
-          {!['attendance', 'contracts'].includes(activeTab) && (
+          {!['attendance', 'contracts', 'timeoff'].includes(activeTab) && error && <p className="text-sm text-red-600 mt-4">{error}</p>}
+
+          {!['attendance', 'contracts', 'timeoff'].includes(activeTab) && (
           <div className="flex gap-3 pt-6 mt-2 border-t border-navy-950/10">
             <button
               type="submit"
@@ -360,5 +400,13 @@ export default function EmployeeForm() {
         </form>
       </div>
     </div>
+  );
+}
+
+function CountBadge({ value }) {
+  return (
+    <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-navy-950/10 text-[11px] font-semibold text-navy-950">
+      {value}
+    </span>
   );
 }

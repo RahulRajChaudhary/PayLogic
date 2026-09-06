@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { HR_ROLES } from '../constants/roles';
+import { HR_ROLES, PAYROLL_ROLES } from '../constants/roles';
 import { employeesApi } from '../api/employees';
 import EmployeeProfileHeader from '../components/EmployeeProfileHeader';
+import PayrollDashboard from '../components/PayrollDashboard';
 
 function MyProfile() {
   const [profile, setProfile] = useState(null);
@@ -84,6 +85,17 @@ function MyProfile() {
 export default function Dashboard() {
   const { user } = useAuth();
   const isHrRole = HR_ROLES.includes(user?.role);
+  const isPayrollRole = PAYROLL_ROLES.includes(user?.role);
+
+  if (isPayrollRole) {
+    return (
+      <div className="min-h-screen bg-cream-50 p-8">
+        <div className="max-w-6xl mx-auto">
+          <PayrollDashboard />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-cream-50 p-8">
@@ -96,13 +108,13 @@ export default function Dashboard() {
 
         {isHrRole && (
           <>
-            <h1 className="text-xl font-semibold text-ink">Dashboard (placeholder)</h1>
+            <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
             <p className="text-muted mt-2">
               Logged in as <span className="font-medium text-ink">{user?.email}</span> (
               {user?.role})
             </p>
             <p className="text-sm text-muted mt-4">
-              Real KPIs/charts land with the Payroll Dashboard session. Use the "Employees"
+              The Payroll Dashboard is only available to payroll roles. Use the "Employees"
               link above for now.
             </p>
           </>

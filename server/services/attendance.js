@@ -258,4 +258,13 @@ async function getAttendanceReport({ employeeId, departmentId, yearMonth, date }
   return { records, summary: summarize(records) };
 }
 
-module.exports = { checkIn, checkOut, updateAttendance, getMonthlyAttendance, getAttendanceReport };
+// All-time record count for one employee — used by the Employee Form's smart-button
+// badge (PDF §B2), which just needs a total, not a period-scoped report.
+async function getAttendanceCount(employeeId) {
+  const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM attendance WHERE employee_id = $1', [employeeId]);
+  return rows[0].count;
+}
+
+module.exports = {
+  checkIn, checkOut, updateAttendance, getMonthlyAttendance, getAttendanceReport, getAttendanceCount,
+};

@@ -1,15 +1,4 @@
 
-CREATE TABLE company (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  logo_url TEXT,
-  address TEXT,
-  city TEXT,
-  state TEXT,
-  country TEXT,
-  created_at TIMESTAMP DEFAULT now()
-);
-
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -35,7 +24,20 @@ CREATE TABLE departments (
 
 CREATE SEQUENCE employee_code_seq START 1;
 
--- working_schedule_id is added later, once working_schedules exists (its own build session)
+CREATE TABLE working_schedules (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL
+);
+
+-- weekly hours are NEVER stored — always summed from schedule_lines on read
+CREATE TABLE schedule_lines (
+  id SERIAL PRIMARY KEY,
+  schedule_id INT REFERENCES working_schedules(id) ON DELETE CASCADE,
+  day TEXT NOT NULL CHECK (day IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')),
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  break_minutes INT NOT NULL DEFAULT 0
+);
 
 CREATE TABLE employees (
   id SERIAL PRIMARY KEY,
@@ -59,8 +61,10 @@ CREATE TABLE employees (
   gender TEXT CHECK (gender IN ('male', 'female', 'other')),
   marital_status TEXT CHECK (marital_status IN ('single', 'married', 'divorced', 'widowed')),
   working_schedule TEXT,
+  working_schedule_id INT REFERENCES working_schedules(id),
   expected_start_time TIME DEFAULT '09:00:00',
   expected_end_time TIME DEFAULT '18:00:00',
+  bank_account TEXT,
   created_at TIMESTAMP DEFAULT now()
 );
 
@@ -92,7 +96,10 @@ CREATE UNIQUE INDEX attendance_one_open_per_employee
 CREATE TABLE time_off_types (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
-  requires_allocation BOOLEAN DEFAULT TRUE
+  requires_allocation BOOLEAN DEFAULT TRUE,
+  unit TEXT NOT NULL DEFAULT 'day' CHECK (unit IN ('day', 'hour')),
+  approval TEXT NOT NULL DEFAULT 'manager' CHECK (approval IN ('manager', 'officer')),
+  color TEXT NOT NULL DEFAULT 'blue'
 );
 
 CREATE TABLE time_off_allocations (
@@ -101,6 +108,11 @@ CREATE TABLE time_off_allocations (
   type_id INT REFERENCES time_off_types(id) NOT NULL,
   allocated NUMERIC(6,2) NOT NULL,
   taken NUMERIC(6,2) DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'refused')),
+  approver_id INT REFERENCES employees(id),
+  valid_from DATE,
+  valid_to DATE,
+  description TEXT,
   UNIQUE (employee_id, type_id)
 );
 
@@ -121,9 +133,30 @@ INSERT INTO time_off_types (name, requires_allocation) VALUES
   ('Sick Leave', TRUE),
   ('Casual Leave', TRUE);
 
--- salary_structure_id is added later, once salary_structures exists (Salary Rule Engine build session)
+CREATE TABLE salary_structures (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT now()
+);
 
-CREATE SEQUENCE contract_code_seq START 1;
+CREATE TABLE salary_rules (
+  id SERIAL PRIMARY KEY,
+  structure_id INT REFERENCES salary_structures(id) NOT NULL,
+  name TEXT NOT NULL,
+  code TEXT NOT NULL,
+  category TEXT CHECK (category IN ('basic', 'allowance', 'gross', 'deduction', 'net')) NOT NULL,
+  sequence INT NOT NULL,
+  computation_method TEXT CHECK (computation_method IN ('fixed', 'percentage', 'formula')) NOT NULL,
+  amount NUMERIC(12,2),
+  percentage NUMERIC(5,2),
+  percentage_of_code TEXT,
+  formula TEXT,
+  UNIQUE (structure_id, code)
+);
+
+CREATE SEQUENCE contract_code_seq START 1;\
+
+
 
 CREATE TABLE contracts (
   id SERIAL PRIMARY KEY,
@@ -132,6 +165,40 @@ CREATE TABLE contracts (
   start_date DATE NOT NULL,
   end_date DATE,
   wage NUMERIC(12,2) NOT NULL,
+  salary_structure_id INT REFERENCES salary_structures(id),
+  department_id INT REFERENCES departments(id),
+  job_position TEXT,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'ended')),
   created_at TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE payruns (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  structure_id INT REFERENCES salary_structures(id) NOT NULL,
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'computed', 'validated', 'paid')),
+  created_at TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE payslips (
+  id SERIAL PRIMARY KEY,
+  payrun_id INT REFERENCES payruns(id) NOT NULL,
+  employee_id INT REFERENCES employees(id) NOT NULL,
+  contract_id INT REFERENCES contracts(id),
+  worked_days NUMERIC(5,2),
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'computed', 'validated', 'paid')),
+  warnings TEXT[] DEFAULT '{}',
+  sent_at TIMESTAMP,
+  UNIQUE (payrun_id, employee_id)
+);
+
+CREATE TABLE payslip_lines (
+  id SERIAL PRIMARY KEY,
+  payslip_id INT REFERENCES payslips(id) NOT NULL,
+  code TEXT NOT NULL,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  amount NUMERIC(12,2) NOT NULL
 );

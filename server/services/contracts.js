@@ -5,9 +5,13 @@ const pool = require('../db/pool');
 // field rather than duplicating it as a separate column on contracts.
 const CONTRACT_SELECT = `
   SELECT c.id, c.contract_code, c.employee_id, e.name AS employee_name, e.employee_type,
-         c.start_date, c.end_date, c.wage, c.status, c.created_at
+         c.start_date, c.end_date, c.wage, c.salary_structure_id, s.name AS salary_structure_name,
+         c.department_id, d.name AS department_name, c.job_position,
+         c.status, c.created_at
   FROM contracts c
   JOIN employees e ON e.id = c.employee_id
+  LEFT JOIN salary_structures s ON s.id = c.salary_structure_id
+  LEFT JOIN departments d ON d.id = c.department_id
 `;
 
 async function listContracts({ employeeId, status } = {}) {
@@ -30,7 +34,8 @@ async function assertNoOverlap(client, employeeId, startDate, endDate, excludeId
   const { rows } = await client.query(
     `SELECT id FROM contracts
      WHERE employee_id = $1 AND status = 'active'
-       AND start_date <= $3 AND (end_date IS NULL OR end_date >= $2)
+       AND ($3::date IS NULL OR start_date <= $3)
+       AND (end_date IS NULL OR end_date >= $2)
        AND id != COALESCE($4, -1)`,
     [employeeId, startDate, endDate ?? null, excludeId ?? null]
   );
@@ -41,7 +46,7 @@ async function assertNoOverlap(client, employeeId, startDate, endDate, excludeId
   }
 }
 
-async function createContract(employeeId, { start_date, end_date, wage, status }) {
+async function createContract(employeeId, { start_date, end_date, wage, salary_structure_id, department_id, job_position, status }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -50,12 +55,12 @@ async function createContract(employeeId, { start_date, end_date, wage, status }
       await assertNoOverlap(client, employeeId, start_date, end_date ?? null, null);
     }
     const { rows } = await client.query(
-      `INSERT INTO contracts (employee_id, start_date, end_date, wage, status)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [employeeId, start_date, end_date ?? null, wage, resolvedStatus]
+      `INSERT INTO contracts (employee_id, start_date, end_date, wage, salary_structure_id, department_id, job_position, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [employeeId, start_date, end_date ?? null, wage, salary_structure_id ?? null, department_id ?? null, job_position ?? null, resolvedStatus]
     );
     await client.query('COMMIT');
-    return rows[0];
+    return getContract(rows[0].id);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -64,7 +69,7 @@ async function createContract(employeeId, { start_date, end_date, wage, status }
   }
 }
 
-async function updateContract(id, { start_date, end_date, wage, status }) {
+async function updateContract(id, { start_date, end_date, wage, salary_structure_id, department_id, job_position, status }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -78,13 +83,14 @@ async function updateContract(id, { start_date, end_date, wage, status }) {
     if (resolvedStatus === 'active') {
       await assertNoOverlap(client, employeeId, start_date, end_date ?? null, id);
     }
-    const { rows } = await client.query(
-      `UPDATE contracts SET start_date = $2, end_date = $3, wage = $4, status = $5
-       WHERE id = $1 RETURNING *`,
-      [id, start_date, end_date ?? null, wage, resolvedStatus]
+    await client.query(
+      `UPDATE contracts SET start_date = $2, end_date = $3, wage = $4, salary_structure_id = $5,
+              department_id = $6, job_position = $7, status = $8
+       WHERE id = $1`,
+      [id, start_date, end_date ?? null, wage, salary_structure_id ?? null, department_id ?? null, job_position ?? null, resolvedStatus]
     );
     await client.query('COMMIT');
-    return rows[0];
+    return getContract(id);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

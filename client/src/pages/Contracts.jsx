@@ -3,8 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { contractsApi } from '../api/contracts';
 import { employeesApi } from '../api/employees';
+import { salaryStructuresApi } from '../api/salaryStructures';
+import { departmentsApi } from '../api/departments';
+import { useAuth } from '../context/AuthContext';
+import { PAYROLL_ROLES } from '../constants/roles';
 
-const EMPTY_FORM = { employee_id: '', start_date: '', end_date: '', wage: '', status: 'active' };
+const EMPTY_FORM = {
+  employee_id: '', start_date: '', end_date: '', wage: '', salary_structure_id: '',
+  department_id: '', job_position: '', status: 'active',
+};
 
 const TYPE_LABEL = {
   full_time: 'Full Time',
@@ -14,8 +21,12 @@ const TYPE_LABEL = {
 
 export default function Contracts() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canSeeStructures = PAYROLL_ROLES.includes(user?.role);
   const [contracts, setContracts] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [structures, setStructures] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null); // null = closed, 'new' = creating, else contract id
@@ -31,14 +42,39 @@ export default function Contracts() {
   useEffect(() => {
     employeesApi.list().then(setEmployees).catch(() => {});
   }, []);
+  // Only fetch structures if this role can actually see them (hr_manager has no payroll
+  // access at all, per PDF §3) — avoids a predictable, needless 403 on every page view.
+  useEffect(() => {
+    if (!canSeeStructures) return;
+    salaryStructuresApi.list().then(setStructures).catch(() => {});
+  }, [canSeeStructures]);
+  useEffect(() => {
+    departmentsApi.list().then(setDepartments).catch(() => {});
+  }, []);
 
   function startCreate() {
     setForm(EMPTY_FORM);
     setEditingId('new');
   }
   function startEdit(c) {
-    setForm({ employee_id: c.employee_id, start_date: c.start_date, end_date: c.end_date ?? '', wage: c.wage, status: c.status });
+    setForm({
+      employee_id: c.employee_id, start_date: c.start_date, end_date: c.end_date ?? '', wage: c.wage,
+      salary_structure_id: c.salary_structure_id ?? '', department_id: c.department_id ?? '',
+      job_position: c.job_position ?? '', status: c.status,
+    });
     setEditingId(c.id);
+  }
+
+  // Prefill Department/Job Position from the selected employee's current values — a
+  // starting suggestion the HR user can still override for this specific contract.
+  function selectEmployee(employeeId) {
+    const emp = employees.find((e) => String(e.id) === employeeId);
+    setForm({
+      ...form,
+      employee_id: employeeId,
+      department_id: emp?.department_id ?? '',
+      job_position: emp?.job_position ?? '',
+    });
   }
 
   async function handleSave() {
@@ -48,6 +84,9 @@ export default function Contracts() {
       start_date: form.start_date,
       end_date: form.end_date || null,
       wage: Number(form.wage),
+      salary_structure_id: form.salary_structure_id ? Number(form.salary_structure_id) : null,
+      department_id: form.department_id ? Number(form.department_id) : null,
+      job_position: form.job_position || null,
       status: form.status,
     };
     try {
@@ -93,7 +132,7 @@ export default function Contracts() {
             {editingId === 'new' && (
               <div>
                 <label className="block text-xs text-muted mb-1">Employee</label>
-                <select value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} className={inputClass}>
+                <select value={form.employee_id} onChange={(e) => selectEmployee(e.target.value)} className={inputClass}>
                   <option value="">— Select employee —</option>
                   {employees.map((e) => (
                     <option key={e.id} value={e.id}>{e.name}</option>
@@ -101,6 +140,19 @@ export default function Contracts() {
                 </select>
               </div>
             )}
+            <div>
+              <label className="block text-xs text-muted mb-1">Department</label>
+              <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} className={inputClass}>
+                <option value="">— None —</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Job Position</label>
+              <input value={form.job_position} onChange={(e) => setForm({ ...form, job_position: e.target.value })} className={inputClass} placeholder="e.g. Payroll Specialist" />
+            </div>
             <div>
               <label className="block text-xs text-muted mb-1">Start Date</label>
               <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className={inputClass} />
@@ -112,6 +164,15 @@ export default function Contracts() {
             <div>
               <label className="block text-xs text-muted mb-1">Wage</label>
               <input type="number" value={form.wage} onChange={(e) => setForm({ ...form, wage: e.target.value })} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Salary Structure</label>
+              <select value={form.salary_structure_id} onChange={(e) => setForm({ ...form, salary_structure_id: e.target.value })} className={inputClass}>
+                <option value="">— None —</option>
+                {structures.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-muted mb-1">Status</label>
@@ -142,9 +203,12 @@ export default function Contracts() {
                   <th className="px-4 py-3 font-medium">Contract ID</th>
                   <th className="px-4 py-3 font-medium">Employee</th>
                   <th className="px-4 py-3 font-medium">Type of Contract</th>
+                  <th className="px-4 py-3 font-medium">Department</th>
+                  <th className="px-4 py-3 font-medium">Job Position</th>
                   <th className="px-4 py-3 font-medium">Start Date</th>
                   <th className="px-4 py-3 font-medium">End Date</th>
                   <th className="px-4 py-3 font-medium">Wage</th>
+                  <th className="px-4 py-3 font-medium">Salary Structure</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium"></th>
                 </tr>
@@ -167,9 +231,12 @@ export default function Contracts() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted">{TYPE_LABEL[c.employee_type] ?? c.employee_type}</td>
+                    <td className="px-4 py-3 text-muted">{c.department_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-muted">{c.job_position ?? '—'}</td>
                     <td className="px-4 py-3 text-ink font-medium">{c.start_date}</td>
                     <td className="px-4 py-3 text-muted">{c.end_date ?? 'Ongoing'}</td>
                     <td className="px-4 py-3 text-muted">{c.wage}</td>
+                    <td className="px-4 py-3 text-muted">{c.salary_structure_name ?? '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-cream-100 text-muted'}`}>
                         {c.status === 'active' ? 'Active' : 'Ended'}{isCurrent(c) && ' · Current'}

@@ -8,6 +8,7 @@ const {
   getMonthlyAttendance,
   getAttendanceReport,
   updateAttendance,
+  getAttendanceCount,
 } = require('../services/attendance');
 
 const router = express.Router();
@@ -65,6 +66,11 @@ router.get('/me', async (req, res) => {
 });
 
 router.use(requireRole(HR_ROLES));
+
+router.get('/count', async (req, res) => {
+  if (!req.query.employee_id) return res.status(400).json({ error: 'employee_id is required' });
+  res.json({ count: await getAttendanceCount(Number(req.query.employee_id)) });
+});
 
 router.get('/', async (req, res) => {
   const employeeId = req.query.employee_id ? Number(req.query.employee_id) : undefined;

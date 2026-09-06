@@ -8,9 +8,90 @@ const DEFAULT_ALLOCATIONS = {
 
 async function listTypes() {
   const { rows } = await pool.query(
-    'SELECT id, name, requires_allocation FROM time_off_types ORDER BY id'
+    'SELECT id, name, requires_allocation, unit, approval, color FROM time_off_types ORDER BY id'
   );
   return rows;
+}
+
+async function createType({ name, requires_allocation, unit, approval, color }) {
+  const { rows } = await pool.query(
+    `INSERT INTO time_off_types (name, requires_allocation, unit, approval, color)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id, name, requires_allocation, unit, approval, color`,
+    [name, requires_allocation ?? true, unit ?? 'day', approval ?? 'manager', color ?? 'blue']
+  );
+  return rows[0];
+}
+
+async function updateType(id, { name, requires_allocation, unit, approval, color }) {
+  const { rows } = await pool.query(
+    `UPDATE time_off_types
+     SET name = $2, requires_allocation = $3, unit = $4, approval = $5, color = $6
+     WHERE id = $1 RETURNING id, name, requires_allocation, unit, approval, color`,
+    [id, name, requires_allocation ?? true, unit ?? 'day', approval ?? 'manager', color ?? 'blue']
+  );
+  return rows[0] ?? null;
+}
+
+const ALLOCATION_SELECT = `
+  SELECT a.id, a.employee_id, e.name AS employee_name, a.type_id, t.name AS type_name,
+         t.unit, a.allocated, a.taken, (a.allocated - a.taken) AS remaining,
+         a.status, a.approver_id, ap.name AS approver_name,
+         a.valid_from, a.valid_to, a.description
+  FROM time_off_allocations a
+  JOIN employees e ON e.id = a.employee_id
+  JOIN time_off_types t ON t.id = a.type_id
+  LEFT JOIN employees ap ON ap.id = a.approver_id
+`;
+
+async function listAllocations({ employeeId, status } = {}) {
+  const conditions = [];
+  const params = [];
+  if (employeeId) { params.push(employeeId); conditions.push(`a.employee_id = $${params.length}`); }
+  if (status) { params.push(status); conditions.push(`a.status = $${params.length}`); }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const { rows } = await pool.query(`${ALLOCATION_SELECT} ${where} ORDER BY e.name, t.id`, params);
+  return rows;
+}
+
+async function createAllocation({ employee_id, type_id, allocated, valid_from, valid_to, description }) {
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO time_off_allocations (employee_id, type_id, allocated, valid_from, valid_to, description, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING id`,
+      [employee_id, type_id, allocated, valid_from ?? null, valid_to ?? null, description ?? null]
+    );
+    return getAllocationById(rows[0].id);
+  } catch (err) {
+    if (err.code === '23505') {
+      const e = new Error('This employee already has an allocation for that leave type — edit it instead');
+      e.code = 'ALLOCATION_EXISTS';
+      throw e;
+    }
+    throw err;
+  }
+}
+
+async function updateAllocation(id, { allocated, valid_from, valid_to, description }) {
+  const { rows } = await pool.query(
+    `UPDATE time_off_allocations
+     SET allocated = $2, valid_from = $3, valid_to = $4, description = $5
+     WHERE id = $1 RETURNING id`,
+    [id, allocated, valid_from ?? null, valid_to ?? null, description ?? null]
+  );
+  return rows[0] ? getAllocationById(id) : null;
+}
+
+async function setAllocationStatus(id, status, approverId) {
+  const { rows } = await pool.query(
+    `UPDATE time_off_allocations SET status = $2, approver_id = $3 WHERE id = $1 RETURNING id`,
+    [id, status, approverId ?? null]
+  );
+  return rows[0] ? getAllocationById(id) : null;
+}
+
+async function getAllocationById(id) {
+  const { rows } = await pool.query(`${ALLOCATION_SELECT} WHERE a.id = $1`, [id]);
+  return rows[0] ?? null;
 }
 
 async function ensureDefaultAllocations(client, employeeId) {
@@ -86,12 +167,13 @@ async function createRequest(employeeId, { type_id, start_date, end_date, reason
 
     if (typeRows[0].requires_allocation) {
       const { rows: allocRows } = await client.query(
-        'SELECT allocated, taken FROM time_off_allocations WHERE employee_id = $1 AND type_id = $2',
+        `SELECT allocated, taken FROM time_off_allocations
+         WHERE employee_id = $1 AND type_id = $2 AND status = 'approved'`,
         [employeeId, type_id]
       );
       const allocation = allocRows[0];
       if (!allocation || Number(allocation.allocated) - Number(allocation.taken) < duration) {
-        const err = new Error('Insufficient leave balance');
+        const err = new Error('Insufficient leave balance (no approved allocation covers this request)');
         err.code = 'INSUFFICIENT_BALANCE';
         throw err;
       }
@@ -171,7 +253,7 @@ async function approveRequest(id) {
       const { rows: allocRows } = await client.query(
         `UPDATE time_off_allocations
          SET taken = taken + $3
-         WHERE employee_id = $1 AND type_id = $2 AND (taken + $3) <= allocated
+         WHERE employee_id = $1 AND type_id = $2 AND status = 'approved' AND (taken + $3) <= allocated
          RETURNING *`,
         [request.employee_id, request.type_id, request.duration]
       );
@@ -207,8 +289,14 @@ async function refuseRequest(id) {
 
 module.exports = {
   listTypes,
+  createType,
+  updateType,
   ensureDefaultAllocations,
   getAllocations,
+  listAllocations,
+  createAllocation,
+  updateAllocation,
+  setAllocationStatus,
   createRequest,
   listRequests,
   cancelRequest,
