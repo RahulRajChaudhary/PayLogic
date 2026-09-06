@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { HR_ROLES } from '../constants/roles';
 import { timeOffApi } from '../api/timeOff';
+import Pagination from '../components/ui/Pagination';
 
 const STATUS_BADGE = {
   pending: 'bg-cream-100 text-muted',
@@ -164,28 +165,44 @@ export default function TimeOff() {
   const [types, setTypes] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
-    timeOffApi.types().then(setTypes).catch(() => {});
+    // limit: 100 — this feeds the leave-type dropdown in the request form, needs every type.
+    timeOffApi.types({ limit: 100 }).then((res) => setTypes(res.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [isHrRole, statusFilter]);
 
   function load() {
     setError('');
     if (isHrRole) {
       timeOffApi
-        .list({ status: statusFilter || undefined })
-        .then(setRequests)
+        .list({ status: statusFilter || undefined, page })
+        .then((res) => {
+          setRequests(res.data);
+          setPagination(res.pagination);
+        })
         .catch((err) => setError(err.message));
     } else {
       timeOffApi.myAllocations().then(setAllocations).catch((err) => setError(err.message));
-      timeOffApi.myRequests().then(setRequests).catch((err) => setError(err.message));
+      timeOffApi
+        .myRequests({ page })
+        .then((res) => {
+          setRequests(res.data);
+          setPagination(res.pagination);
+        })
+        .catch((err) => setError(err.message));
     }
   }
 
-  useEffect(load, [isHrRole, statusFilter]);
+  useEffect(load, [isHrRole, statusFilter, page]);
 
   async function handleSubmit(payload) {
     setFormError('');
@@ -261,6 +278,7 @@ export default function TimeOff() {
           onApprove={isHrRole ? handleApprove : undefined}
           onRefuse={isHrRole ? handleRefuse : undefined}
         />
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

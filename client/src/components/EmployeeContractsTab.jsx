@@ -26,16 +26,17 @@ export default function EmployeeContractsTab({ employeeId }) {
 
   function load() {
     setError('');
-    contractsApi.list({ employeeId }).then(setContracts).catch((err) => setError(err.message));
+    // limit: 100 — a single employee's contract history, small enough to show in full on this tab.
+    contractsApi.list({ employeeId, limit: 100 }).then((res) => setContracts(res.data)).catch((err) => setError(err.message));
   }
   useEffect(load, [employeeId]);
   // Only fetch structures if this role can actually see them (hr_manager has no payroll
   // access at all, per PDF §3) — avoids a predictable, needless 403 on every page view.
   useEffect(() => {
     if (!canSeeStructures) return;
-    salaryStructuresApi.list().then(setStructures).catch(() => {});
+    salaryStructuresApi.list({ limit: 100 }).then((res) => setStructures(res.data)).catch(() => {});
   }, [canSeeStructures]);
-  useEffect(() => { departmentsApi.list().then(setDepartments).catch(() => {}); }, []);
+  useEffect(() => { departmentsApi.list({ limit: 100 }).then((res) => setDepartments(res.data)).catch(() => {}); }, []);
   useEffect(() => { employeesApi.get(employeeId).then(setEmployee).catch(() => {}); }, [employeeId]);
 
   function startCreate() {

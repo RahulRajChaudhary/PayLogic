@@ -44,7 +44,8 @@ export default function Attendance() {
 
   useEffect(() => {
     if (isHrRole) {
-      departmentsApi.list().then(setDepartments).catch(() => {});
+      // limit: 100 — feeds the department filter dropdown, needs every department.
+      departmentsApi.list({ limit: 100 }).then((res) => setDepartments(res.data)).catch(() => {});
     }
   }, [isHrRole]);
 

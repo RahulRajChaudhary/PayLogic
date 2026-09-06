@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { timeOffApi } from '../api/timeOff';
 import { employeesApi } from '../api/employees';
+import Pagination from '../components/ui/Pagination';
 
 const STATUS_BADGE = {
   pending: 'bg-amber-100 text-amber-700',
@@ -15,6 +16,8 @@ const EMPTY_FORM = { employee_id: '', type_id: '', allocated: '', valid_from: ''
 
 export default function Allocations() {
   const [allocations, setAllocations] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [employees, setEmployees] = useState([]);
   const [types, setTypes] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
@@ -23,14 +26,25 @@ export default function Allocations() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
   function load() {
     setError('');
-    timeOffApi.allocations({ status: statusFilter || undefined }).then(setAllocations).catch((err) => setError(err.message));
+    timeOffApi
+      .allocations({ status: statusFilter || undefined, page })
+      .then((res) => {
+        setAllocations(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, [statusFilter]);
+  useEffect(load, [statusFilter, page]);
   useEffect(() => {
-    employeesApi.list().then(setEmployees).catch(() => {});
-    timeOffApi.types().then(setTypes).catch(() => {});
+    // limit: 100 — both feed dropdowns (employee/type pickers), need every row.
+    employeesApi.list({ limit: 100 }).then((res) => setEmployees(res.data)).catch(() => {});
+    timeOffApi.types({ limit: 100 }).then((res) => setTypes(res.data)).catch(() => {});
   }, []);
 
   function startCreate() {
@@ -190,6 +204,8 @@ export default function Allocations() {
             </table>
           </div>
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

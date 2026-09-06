@@ -2,6 +2,7 @@ const express = require('express');
 const authenticate = require('../middleware/authenticate');
 const requireRole = require('../middleware/requireRole');
 const { listContracts, getContract, createContract, updateContract } = require('../services/contracts');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin'];
@@ -10,7 +11,9 @@ router.use(authenticate);
 router.use(requireRole(HR_ROLES));
 
 router.get('/', async (req, res) => {
-  res.json(await listContracts({ employeeId: req.query.employee_id, status: req.query.status }));
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listContracts({ employeeId: req.query.employee_id, status: req.query.status, page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.get('/:id', async (req, res) => {

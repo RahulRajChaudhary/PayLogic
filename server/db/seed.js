@@ -391,7 +391,7 @@ async function seed() {
   await seedTodayCheckIn(employeeIdsByName['Meera Joshi']);
 
   console.log('Seeding demo time off requests...');
-  const types = await listTypes();
+  const { rows: types } = await listTypes();
   const typeIdsByName = Object.fromEntries(types.map((t) => [t.name, t.id]));
   await seedTimeOffRequest(employeeIdsByName['John Dsouza'], typeIdsByName, {
     typeName: 'Casual Leave',

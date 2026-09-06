@@ -25,9 +25,17 @@ function immutable() {
   return err;
 }
 
-async function listPayruns() {
-  const { rows } = await pool.query(`${PAYRUN_SELECT} ORDER BY p.period_start DESC`);
-  return rows;
+async function listPayruns({ page = 1, limit = 20 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT p.*, COUNT(*) OVER() AS total_count FROM (
+       ${PAYRUN_SELECT}
+     ) p
+     ORDER BY p.period_start DESC
+     LIMIT $1 OFFSET $2`,
+    [limit, (page - 1) * limit]
+  );
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function getPayrunRaw(id) {

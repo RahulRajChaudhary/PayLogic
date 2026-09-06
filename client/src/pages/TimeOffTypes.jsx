@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { timeOffApi } from '../api/timeOff';
+import Pagination from '../components/ui/Pagination';
 
 const COLORS = ['blue', 'green', 'orange', 'red', 'purple', 'gray'];
 const COLOR_DOT = {
@@ -11,6 +12,8 @@ const EMPTY_FORM = { name: '', unit: 'day', requires_allocation: true, approval:
 
 export default function TimeOffTypes() {
   const [types, setTypes] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -18,9 +21,15 @@ export default function TimeOffTypes() {
 
   function load() {
     setError('');
-    timeOffApi.types().then(setTypes).catch((err) => setError(err.message));
+    timeOffApi
+      .types({ page })
+      .then((res) => {
+        setTypes(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   function startCreate() {
     setForm(EMPTY_FORM);
@@ -139,6 +148,8 @@ export default function TimeOffTypes() {
             </tbody>
           </table>
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

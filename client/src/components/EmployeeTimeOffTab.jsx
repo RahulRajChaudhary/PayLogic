@@ -12,8 +12,9 @@ export default function EmployeeTimeOffTab({ employeeId }) {
 
   function load() {
     setError('');
-    timeOffApi.allocations({ employeeId }).then(setAllocations).catch((err) => setError(err.message));
-    timeOffApi.list({ employeeId }).then(setRequests).catch((err) => setError(err.message));
+    // limit: 100 — a single employee's own history, small enough to show in full on this tab.
+    timeOffApi.allocations({ employeeId, limit: 100 }).then((res) => setAllocations(res.data)).catch((err) => setError(err.message));
+    timeOffApi.list({ employeeId, limit: 100 }).then((res) => setRequests(res.data)).catch((err) => setError(err.message));
   }
   useEffect(load, [employeeId]);
 

@@ -6,11 +6,15 @@ const DEFAULT_ALLOCATIONS = {
   'Casual Leave': 7,
 };
 
-async function listTypes() {
+async function listTypes({ page = 1, limit = 20 } = {}) {
   const { rows } = await pool.query(
-    'SELECT id, name, requires_allocation, unit, approval, color FROM time_off_types ORDER BY id'
+    `SELECT id, name, requires_allocation, unit, approval, color, COUNT(*) OVER() AS total_count
+     FROM time_off_types ORDER BY id
+     LIMIT $1 OFFSET $2`,
+    [limit, (page - 1) * limit]
   );
-  return rows;
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function createType({ name, requires_allocation, unit, approval, color }) {
@@ -43,14 +47,24 @@ const ALLOCATION_SELECT = `
   LEFT JOIN employees ap ON ap.id = a.approver_id
 `;
 
-async function listAllocations({ employeeId, status } = {}) {
+async function listAllocations({ employeeId, status, page = 1, limit = 20 } = {}) {
   const conditions = [];
   const params = [];
   if (employeeId) { params.push(employeeId); conditions.push(`a.employee_id = $${params.length}`); }
   if (status) { params.push(status); conditions.push(`a.status = $${params.length}`); }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const { rows } = await pool.query(`${ALLOCATION_SELECT} ${where} ORDER BY e.name, t.id`, params);
-  return rows;
+
+  params.push(limit, (page - 1) * limit);
+  const { rows } = await pool.query(
+    `SELECT a.*, COUNT(*) OVER() AS total_count FROM (
+       ${ALLOCATION_SELECT} ${where}
+     ) a
+     ORDER BY a.employee_name, a.type_id
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function createAllocation({ employee_id, type_id, allocated, valid_from, valid_to, description }) {
@@ -196,7 +210,7 @@ async function createRequest(employeeId, { type_id, start_date, end_date, reason
   }
 }
 
-async function listRequests({ employeeId, status } = {}) {
+async function listRequests({ employeeId, status, page = 1, limit = 20 } = {}) {
   const conditions = [];
   const params = [];
   if (employeeId) {
@@ -208,17 +222,23 @@ async function listRequests({ employeeId, status } = {}) {
     conditions.push(`r.status = $${params.length}`);
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  params.push(limit, (page - 1) * limit);
   const { rows } = await pool.query(
-    `SELECT r.id, r.employee_id, e.name AS employee_name, r.type_id, t.name AS type_name,
-            r.start_date, r.end_date, r.duration, r.reason, r.status, r.created_at
-     FROM time_off_requests r
-     JOIN employees e ON e.id = r.employee_id
-     JOIN time_off_types t ON t.id = r.type_id
-     ${where}
-     ORDER BY r.created_at DESC`,
+    `SELECT sub.*, COUNT(*) OVER() AS total_count FROM (
+       SELECT r.id, r.employee_id, e.name AS employee_name, r.type_id, t.name AS type_name,
+              r.start_date, r.end_date, r.duration, r.reason, r.status, r.created_at
+       FROM time_off_requests r
+       JOIN employees e ON e.id = r.employee_id
+       JOIN time_off_types t ON t.id = r.type_id
+       ${where}
+     ) sub
+     ORDER BY sub.created_at DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
   );
-  return rows;
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function cancelRequest(id, employeeId) {

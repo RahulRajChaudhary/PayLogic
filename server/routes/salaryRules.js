@@ -2,12 +2,16 @@ const express = require('express');
 const authenticate = require('../middleware/authenticate');
 const requireRole = require('../middleware/requireRole');
 const { listRules, createRule, updateRule } = require('../services/salaryRules');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
+
 const PAYROLL_ROLES = ['hr_payroll_user', 'hr_payroll_manager', 'admin'];
+
 const PAYROLL_ADMIN_ROLES = ['hr_payroll_manager', 'admin'];
 
 const CATEGORIES = ['basic', 'allowance', 'gross', 'deduction', 'net'];
+
 const METHODS = ['fixed', 'percentage', 'formula'];
 
 function validateRuleBody(body) {
@@ -32,7 +36,9 @@ function validateRuleBody(body) {
 router.use(authenticate);
 
 router.get('/', requireRole(PAYROLL_ROLES), async (req, res) => {
-  res.json(await listRules({ structureId: req.query.structure_id }));
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listRules({ structureId: req.query.structure_id, page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.post('/', requireRole(PAYROLL_ADMIN_ROLES), async (req, res) => {

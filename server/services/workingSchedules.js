@@ -16,9 +16,17 @@ const SCHEDULE_SELECT = `
   ORDER BY s.name
 `;
 
-async function listSchedules() {
-  const { rows } = await pool.query(SCHEDULE_SELECT, [null]);
-  return rows;
+async function listSchedules({ page = 1, limit = 20 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT s.*, COUNT(*) OVER() AS total_count FROM (
+       ${SCHEDULE_SELECT}
+     ) s
+     ORDER BY s.name
+     LIMIT $2 OFFSET $3`,
+    [null, limit, (page - 1) * limit]
+  );
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function getSchedule(id) {

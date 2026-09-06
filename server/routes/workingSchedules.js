@@ -2,6 +2,7 @@ const express = require('express');
 const authenticate = require('../middleware/authenticate');
 const requireRole = require('../middleware/requireRole');
 const { listSchedules, getSchedule, createSchedule, updateSchedule } = require('../services/workingSchedules');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin'];
@@ -20,7 +21,9 @@ function validateBody(body) {
 }
 
 router.get('/', async (req, res) => {
-  res.json(await listSchedules());
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listSchedules({ page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.get('/:id', async (req, res) => {

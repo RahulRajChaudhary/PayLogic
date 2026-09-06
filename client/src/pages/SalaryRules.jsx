@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { PAYROLL_ADMIN_ROLES } from '../constants/roles';
 import { salaryStructuresApi } from '../api/salaryStructures';
 import { salaryRulesApi } from '../api/salaryRules';
+import Pagination from '../components/ui/Pagination';
 
 const CATEGORIES = ['basic', 'allowance', 'gross', 'deduction', 'net'];
 const METHODS = ['fixed', 'percentage', 'formula'];
@@ -31,20 +32,33 @@ export default function SalaryRules() {
   const [structures, setStructures] = useState([]);
   const [structureFilter, setStructureFilter] = useState(structureIdParam);
   const [rules, setRules] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ ...EMPTY_FORM, structure_id: structureIdParam });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    salaryStructuresApi.list().then(setStructures).catch(() => {});
+    // limit: 100 — feeds the structure filter/picker dropdowns, needs every structure.
+    salaryStructuresApi.list({ limit: 100 }).then((res) => setStructures(res.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [structureFilter]);
 
   function load() {
     setError('');
-    salaryRulesApi.list({ structureId: structureFilter || undefined }).then(setRules).catch((err) => setError(err.message));
+    salaryRulesApi
+      .list({ structureId: structureFilter || undefined, page })
+      .then((res) => {
+        setRules(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, [structureFilter]);
+  useEffect(load, [structureFilter, page]);
 
   function startCreate() {
     setForm({ ...EMPTY_FORM, structure_id: structureFilter });
@@ -233,6 +247,8 @@ export default function SalaryRules() {
             </table>
           </div>
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

@@ -2,20 +2,33 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { payslipsApi } from '../api/payslips';
 import Badge from '../components/ui/Badge';
+import Pagination from '../components/ui/Pagination';
 
 const money = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
 
 export default function Payslips() {
   const navigate = useNavigate();
   const [payslips, setPayslips] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
   function load() {
     setError('');
-    payslipsApi.list({ status: statusFilter || undefined }).then(setPayslips).catch((err) => setError(err.message));
+    payslipsApi
+      .list({ status: statusFilter || undefined, page })
+      .then((res) => {
+        setPayslips(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, [statusFilter]);
+  useEffect(load, [statusFilter, page]);
 
   const inputClass = 'rounded-lg border border-navy-950/15 px-3 py-2 text-sm';
 
@@ -70,6 +83,8 @@ export default function Payslips() {
             </table>
           </div>
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

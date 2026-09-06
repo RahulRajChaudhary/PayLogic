@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { payrunsApi } from '../api/payruns';
 import { salaryStructuresApi } from '../api/salaryStructures';
+import Pagination from '../components/ui/Pagination';
 
 const STATUS_BADGE = {
   draft: 'bg-cream-100 text-muted',
@@ -18,6 +19,8 @@ const EMPTY_WIZARD_FORM = { name: '', structure_id: '', period_start: '', period
 export default function Payruns() {
   const navigate = useNavigate();
   const [payruns, setPayruns] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [structures, setStructures] = useState([]);
   const [error, setError] = useState('');
 
@@ -29,10 +32,17 @@ export default function Payruns() {
 
   function load() {
     setError('');
-    payrunsApi.list().then(setPayruns).catch((err) => setError(err.message));
+    payrunsApi
+      .list({ page })
+      .then((res) => {
+        setPayruns(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, []);
-  useEffect(() => { salaryStructuresApi.list().then(setStructures).catch(() => {}); }, []);
+  useEffect(load, [page]);
+  // limit: 100 — this feeds the structure picker dropdown, so it needs every structure, not one page.
+  useEffect(() => { salaryStructuresApi.list({ limit: 100 }).then((res) => setStructures(res.data)).catch(() => {}); }, []);
 
   function startWizard() {
     setWizardForm(EMPTY_WIZARD_FORM);
@@ -226,6 +236,8 @@ export default function Payruns() {
             </tbody>
           </table>
         </div>
+
+        {wizardStep === 0 && <Pagination pagination={pagination} onPageChange={setPage} />}
       </div>
     </div>
   );

@@ -49,7 +49,7 @@ const EMPLOYEE_SELECT = `
   LEFT JOIN working_schedules ws ON ws.id = e.working_schedule_id
 `;
 
-async function listEmployees({ status, search } = {}) {
+async function listEmployees({ status, search, page = 1, limit = 20 } = {}) {
   const conditions = [];
   const params = [];
 
@@ -63,8 +63,20 @@ async function listEmployees({ status, search } = {}) {
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const { rows } = await pool.query(`${EMPLOYEE_SELECT} ${where} ORDER BY e.name`, params);
-  return rows;
+
+  // COUNT(*) OVER() rides along on every row so we get the total for pagination
+  // without a second round-trip query. It's computed before LIMIT is applied.
+  params.push(limit, (page - 1) * limit);
+  const { rows } = await pool.query(
+    `SELECT e.*, COUNT(*) OVER() AS total_count FROM (
+       ${EMPLOYEE_SELECT} ${where}
+     ) e
+     ORDER BY e.name
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function getEmployee(id) {

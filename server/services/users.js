@@ -11,14 +11,18 @@ const createUserSchema = z.object({
   role: z.enum(ASSIGNABLE_ROLES),
 });
 
-async function listUsers() {
+async function listUsers({ page = 1, limit = 20 } = {}) {
   const { rows } = await pool.query(
-    `SELECT u.id, u.email, u.role, e.id AS employee_id, e.name AS employee_name
+    `SELECT u.id, u.email, u.role, e.id AS employee_id, e.name AS employee_name,
+            COUNT(*) OVER() AS total_count
      FROM users u
      LEFT JOIN employees e ON e.user_id = u.id
-     ORDER BY u.email`
+     ORDER BY u.email
+     LIMIT $1 OFFSET $2`,
+    [limit, (page - 1) * limit]
   );
-  return rows;
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function createUserForEmployee({ employee_id, email, password, role }) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { workingSchedulesApi } from '../api/workingSchedules';
+import Pagination from '../components/ui/Pagination';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DEFAULT_LINE = { day: 'Monday', start_time: '09:00', end_time: '18:00', break_minutes: 60 };
@@ -16,6 +17,8 @@ function lineHours(line) {
 
 export default function WorkingSchedules() {
   const [schedules, setSchedules] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null); // null | 'new' | id
   const [name, setName] = useState('');
@@ -24,9 +27,15 @@ export default function WorkingSchedules() {
 
   function load() {
     setError('');
-    workingSchedulesApi.list().then(setSchedules).catch((err) => setError(err.message));
+    workingSchedulesApi
+      .list({ page })
+      .then((res) => {
+        setSchedules(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   function startCreate() {
     setName('');
@@ -187,6 +196,8 @@ export default function WorkingSchedules() {
             </table>
           </div>
         )}
+
+        {editingId === null && <Pagination pagination={pagination} onPageChange={setPage} />}
       </div>
     </div>
   );

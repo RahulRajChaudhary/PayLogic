@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { departmentsApi } from '../api/departments';
+import Pagination from '../components/ui/Pagination';
 
 export default function Departments() {
   const [departments, setDepartments] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null); // null = closed, 'new' = creating, else id
   const [name, setName] = useState('');
@@ -10,9 +13,15 @@ export default function Departments() {
 
   function load() {
     setError('');
-    departmentsApi.list().then(setDepartments).catch((err) => setError(err.message));
+    departmentsApi
+      .list({ page })
+      .then((res) => {
+        setDepartments(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   function startCreate() {
     setName('');
@@ -103,6 +112,8 @@ export default function Departments() {
             </tbody>
           </table>
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

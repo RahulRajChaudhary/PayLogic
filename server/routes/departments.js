@@ -2,6 +2,7 @@ const express = require('express');
 const authenticate = require('../middleware/authenticate');
 const requireRole = require('../middleware/requireRole');
 const { listDepartments, createDepartment, updateDepartment } = require('../services/departments');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin'];
@@ -9,7 +10,9 @@ const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin'
 router.use(authenticate, requireRole(HR_ROLES));
 
 router.get('/', async (req, res) => {
-  res.json(await listDepartments());
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listDepartments({ page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.post('/', async (req, res) => {

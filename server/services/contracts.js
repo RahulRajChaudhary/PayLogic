@@ -14,14 +14,24 @@ const CONTRACT_SELECT = `
   LEFT JOIN departments d ON d.id = c.department_id
 `;
 
-async function listContracts({ employeeId, status } = {}) {
+async function listContracts({ employeeId, status, page = 1, limit = 20 } = {}) {
   const conditions = [];
   const params = [];
   if (employeeId) { params.push(employeeId); conditions.push(`c.employee_id = $${params.length}`); }
   if (status) { params.push(status); conditions.push(`c.status = $${params.length}`); }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const { rows } = await pool.query(`${CONTRACT_SELECT} ${where} ORDER BY c.start_date DESC`, params);
-  return rows;
+
+  params.push(limit, (page - 1) * limit);
+  const { rows } = await pool.query(
+    `SELECT c.*, COUNT(*) OVER() AS total_count FROM (
+       ${CONTRACT_SELECT} ${where}
+     ) c
+     ORDER BY c.start_date DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function getContract(id) {

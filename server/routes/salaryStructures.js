@@ -2,6 +2,7 @@ const express = require('express');
 const authenticate = require('../middleware/authenticate');
 const requireRole = require('../middleware/requireRole');
 const { listStructures, getStructure, createStructure, updateStructure } = require('../services/salaryStructures');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 const PAYROLL_ROLES = ['hr_payroll_user', 'hr_payroll_manager', 'admin'];
@@ -10,7 +11,9 @@ const PAYROLL_ADMIN_ROLES = ['hr_payroll_manager', 'admin'];
 router.use(authenticate);
 
 router.get('/', requireRole(PAYROLL_ROLES), async (req, res) => {
-  res.json(await listStructures());
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listStructures({ page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.get('/:id', requireRole(PAYROLL_ROLES), async (req, res) => {

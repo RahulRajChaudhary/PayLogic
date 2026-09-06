@@ -5,6 +5,7 @@ const {
   listPayruns, getPayrun, getEligibleEmployees, createPayrun,
   computePayrun, validatePayrun, markPaid, sendPayslips,
 } = require('../services/payruns');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 const PAYROLL_ROLES = ['hr_payroll_user', 'hr_payroll_manager', 'admin'];
@@ -12,7 +13,9 @@ const PAYROLL_ROLES = ['hr_payroll_user', 'hr_payroll_manager', 'admin'];
 router.use(authenticate, requireRole(PAYROLL_ROLES));
 
 router.get('/', async (req, res) => {
-  res.json(await listPayruns());
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listPayruns({ page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 // Must come before /:id or Express would treat "eligible-employees" as an :id.

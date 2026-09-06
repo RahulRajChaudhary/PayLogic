@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { PAYROLL_ADMIN_ROLES } from '../constants/roles';
 import { salaryStructuresApi } from '../api/salaryStructures';
+import Pagination from '../components/ui/Pagination';
 
 export default function SalaryStructures() {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ export default function SalaryStructures() {
   const canEdit = PAYROLL_ADMIN_ROLES.includes(user?.role);
 
   const [structures, setStructures] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null); // null = closed, 'new' = creating, else id
   const [name, setName] = useState('');
@@ -17,9 +20,15 @@ export default function SalaryStructures() {
 
   function load() {
     setError('');
-    salaryStructuresApi.list().then(setStructures).catch((err) => setError(err.message));
+    salaryStructuresApi
+      .list({ page })
+      .then((res) => {
+        setStructures(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   function startCreate() {
     setName('');
@@ -139,6 +148,8 @@ export default function SalaryStructures() {
             </table>
           </div>
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

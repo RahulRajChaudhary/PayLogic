@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usersApi } from '../api/users';
 import { employeesApi } from '../api/employees';
+import Pagination from '../components/ui/Pagination';
 
 const ROLES = ['employee', 'hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin'];
 
@@ -8,20 +9,29 @@ const EMPTY_FORM = { employee_id: '', email: '', password: '', role: 'employee' 
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [unlinkedEmployees, setUnlinkedEmployees] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   function loadData() {
-    usersApi.list().then(setUsers).catch((err) => setError(err.message));
+    usersApi
+      .list({ page })
+      .then((res) => {
+        setUsers(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
+    // limit: 100 — feeds the "employee without a login" picker, needs every unlinked employee.
     employeesApi
-      .list()
-      .then((employees) => setUnlinkedEmployees(employees.filter((e) => !e.user_id)))
+      .list({ limit: 100 })
+      .then((res) => setUnlinkedEmployees(res.data.filter((e) => !e.user_id)))
       .catch(() => {});
   }
 
-  useEffect(loadData, []);
+  useEffect(loadData, [page]);
 
   function update(field) {
     return (e) => setForm({ ...form, [field]: e.target.value });
@@ -78,6 +88,7 @@ export default function UserManagement() {
               </table>
             </div>
           </div>
+          <Pagination pagination={pagination} onPageChange={setPage} />
         </div>
 
         <div>

@@ -7,6 +7,7 @@ import { salaryStructuresApi } from '../api/salaryStructures';
 import { departmentsApi } from '../api/departments';
 import { useAuth } from '../context/AuthContext';
 import { PAYROLL_ROLES } from '../constants/roles';
+import Pagination from '../components/ui/Pagination';
 
 const EMPTY_FORM = {
   employee_id: '', start_date: '', end_date: '', wage: '', salary_structure_id: '',
@@ -24,6 +25,8 @@ export default function Contracts() {
   const { user } = useAuth();
   const canSeeStructures = PAYROLL_ROLES.includes(user?.role);
   const [contracts, setContracts] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [employees, setEmployees] = useState([]);
   const [structures, setStructures] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -33,23 +36,35 @@ export default function Contracts() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
   function load() {
     setError('');
-    contractsApi.list({ status: statusFilter || undefined }).then(setContracts).catch((err) => setError(err.message));
+    contractsApi
+      .list({ status: statusFilter || undefined, page })
+      .then((res) => {
+        setContracts(res.data);
+        setPagination(res.pagination);
+      })
+      .catch((err) => setError(err.message));
   }
-  useEffect(load, [statusFilter]);
+  useEffect(load, [statusFilter, page]);
 
+  // These three feed dropdowns (employee/structure/department pickers), so they need
+  // every row, not one page — limit: 100 covers a hackathon-scale demo dataset.
   useEffect(() => {
-    employeesApi.list().then(setEmployees).catch(() => {});
+    employeesApi.list({ limit: 100 }).then((res) => setEmployees(res.data)).catch(() => {});
   }, []);
   // Only fetch structures if this role can actually see them (hr_manager has no payroll
   // access at all, per PDF §3) — avoids a predictable, needless 403 on every page view.
   useEffect(() => {
     if (!canSeeStructures) return;
-    salaryStructuresApi.list().then(setStructures).catch(() => {});
+    salaryStructuresApi.list({ limit: 100 }).then((res) => setStructures(res.data)).catch(() => {});
   }, [canSeeStructures]);
   useEffect(() => {
-    departmentsApi.list().then(setDepartments).catch(() => {});
+    departmentsApi.list({ limit: 100 }).then((res) => setDepartments(res.data)).catch(() => {});
   }, []);
 
   function startCreate() {
@@ -257,6 +272,8 @@ export default function Contracts() {
             </table>
           </div>
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

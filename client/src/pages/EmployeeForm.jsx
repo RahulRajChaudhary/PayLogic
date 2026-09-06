@@ -58,9 +58,10 @@ export default function EmployeeForm() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    departmentsApi.list().then(setDepartments).catch(() => {});
-    employeesApi.list().then(setEmployees).catch(() => {});
-    workingSchedulesApi.list().then(setSchedules).catch(() => {});
+    // limit: 100 — these feed dropdown pickers (department/manager/schedule), need every row.
+    departmentsApi.list({ limit: 100 }).then((res) => setDepartments(res.data)).catch(() => {});
+    employeesApi.list({ limit: 100 }).then((res) => setEmployees(res.data)).catch(() => {});
+    workingSchedulesApi.list({ limit: 100 }).then((res) => setSchedules(res.data)).catch(() => {});
     tagsApi.list().then(setAvailableTags).catch(() => {});
   }, []);
 
@@ -97,9 +98,11 @@ export default function EmployeeForm() {
   // tabs so their volume is visible without opening each one.
   useEffect(() => {
     if (isNew) return;
-    contractsApi.list({ employeeId: id }).then((rows) => setCounts((c) => ({ ...c, contracts: rows.length }))).catch(() => {});
+    // Use pagination.total, not data.length — data is only the current page's rows,
+    // and would silently under-report the count once an employee passes the page size.
+    contractsApi.list({ employeeId: id }).then((res) => setCounts((c) => ({ ...c, contracts: res.pagination.total }))).catch(() => {});
     attendanceApi.count(id).then(({ count }) => setCounts((c) => ({ ...c, attendance: count }))).catch(() => {});
-    timeOffApi.list({ employeeId: id }).then((rows) => setCounts((c) => ({ ...c, timeoff: rows.length }))).catch(() => {});
+    timeOffApi.list({ employeeId: id }).then((res) => setCounts((c) => ({ ...c, timeoff: res.pagination.total }))).catch(() => {});
   }, [id, isNew]);
 
   function update(field) {

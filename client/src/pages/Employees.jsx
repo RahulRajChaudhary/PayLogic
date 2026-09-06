@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus } from 'lucide-react';
 import { employeesApi } from '../api/employees';
+import Pagination from '../components/ui/Pagination';
 
 const statusBadgeClass = (status) =>
   `px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -10,24 +11,35 @@ const statusBadgeClass = (status) =>
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
+  const [pagination, setPagination] = useState(null);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [view, setView] = useState('list');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Any search change should jump back to page 1 — otherwise you can land on a
+  // page number that no longer exists for the new, smaller result set.
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => {
       employeesApi
-        .list({ search })
-        .then(setEmployees)
+        .list({ search, page })
+        .then((res) => {
+          setEmployees(res.data);
+          setPagination(res.pagination);
+        })
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }, 250); // debounce so we don't hit the API on every keystroke
 
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, page]);
 
   return (
     <div className="min-h-screen bg-cream-50 p-8">
@@ -138,6 +150,8 @@ export default function Employees() {
             </div>
           )
         )}
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );

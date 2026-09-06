@@ -1,7 +1,13 @@
 import { http } from './http';
 
 export const payrunsApi = {
-  list: () => http.get('/payruns'),
+  list: ({ page, limit } = {}) => {
+    const params = new URLSearchParams();
+    if (page) params.set('page', page);
+    if (limit) params.set('limit', limit);
+    const qs = params.toString();
+    return http.get(`/payruns${qs ? `?${qs}` : ''}`);
+  },
   get: (id) => http.get(`/payruns/${id}`),
   eligibleEmployees: ({ structureId, periodStart, periodEnd }) => {
     const params = new URLSearchParams({ structure_id: structureId, period_start: periodStart, period_end: periodEnd });

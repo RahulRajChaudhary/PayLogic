@@ -17,6 +17,7 @@ const {
   approveRequest,
   refuseRequest,
 } = require('../services/timeOff');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin'];
@@ -33,7 +34,9 @@ async function resolveOwnEmployeeId(req, res) {
 }
 
 router.get('/types', async (req, res) => {
-  res.json(await listTypes());
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listTypes({ page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.get('/me/allocations', async (req, res) => {
@@ -45,7 +48,9 @@ router.get('/me/allocations', async (req, res) => {
 router.get('/me/requests', async (req, res) => {
   const employeeId = await resolveOwnEmployeeId(req, res);
   if (employeeId === null) return;
-  res.json(await listRequests({ employeeId }));
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listRequests({ employeeId, page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.post('/requests', async (req, res) => {
@@ -79,7 +84,9 @@ router.post('/requests/:id/cancel', async (req, res) => {
 router.use(requireRole(HR_ROLES));
 
 router.get('/requests', async (req, res) => {
-  res.json(await listRequests({ employeeId: req.query.employee_id, status: req.query.status }));
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listRequests({ employeeId: req.query.employee_id, status: req.query.status, page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.post('/requests/:id/approve', async (req, res) => {
@@ -144,7 +151,9 @@ router.put('/types/:id', async (req, res) => {
 // --- Allocations (config + approval) ---
 
 router.get('/allocations', async (req, res) => {
-  res.json(await listAllocations({ employeeId: req.query.employee_id, status: req.query.status }));
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listAllocations({ employeeId: req.query.employee_id, status: req.query.status, page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.post('/allocations', async (req, res) => {

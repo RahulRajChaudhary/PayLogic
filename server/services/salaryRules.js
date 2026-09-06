@@ -8,13 +8,23 @@ const RULE_SELECT = `
   JOIN salary_structures s ON s.id = r.structure_id
 `;
 
-async function listRules({ structureId } = {}) {
+async function listRules({ structureId, page = 1, limit = 20 } = {}) {
   const conditions = [];
   const params = [];
   if (structureId) { params.push(structureId); conditions.push(`r.structure_id = $${params.length}`); }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const { rows } = await pool.query(`${RULE_SELECT} ${where} ORDER BY s.name, r.sequence`, params);
-  return rows;
+
+  params.push(limit, (page - 1) * limit);
+  const { rows } = await pool.query(
+    `SELECT r.*, COUNT(*) OVER() AS total_count FROM (
+       ${RULE_SELECT} ${where}
+     ) r
+     ORDER BY r.structure_name, r.sequence
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function createRule({ structure_id, name, code, category, sequence, computation_method,

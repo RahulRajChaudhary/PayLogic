@@ -2,13 +2,16 @@ const express = require('express');
 const authenticate = require('../middleware/authenticate');
 const requireRole = require('../middleware/requireRole');
 const { createUserSchema, listUsers, createUserForEmployee } = require('../services/users');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 const router = express.Router();
 
 router.use(authenticate, requireRole(['admin']));
 
 router.get('/', async (req, res) => {
-  res.json(await listUsers());
+  const { page, limit } = parsePagination(req.query);
+  const { rows, total } = await listUsers({ page, limit });
+  res.json({ data: rows, pagination: buildPaginationMeta({ page, limit, total }) });
 });
 
 router.post('/', async (req, res) => {

@@ -8,9 +8,17 @@ const STRUCTURE_SELECT = `
   FROM salary_structures s
 `;
 
-async function listStructures() {
-  const { rows } = await pool.query(`${STRUCTURE_SELECT} ORDER BY s.name`);
-  return rows;
+async function listStructures({ page = 1, limit = 20 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT s.*, COUNT(*) OVER() AS total_count FROM (
+       ${STRUCTURE_SELECT}
+     ) s
+     ORDER BY s.name
+     LIMIT $1 OFFSET $2`,
+    [limit, (page - 1) * limit]
+  );
+  const total = rows[0] ? Number(rows[0].total_count) : 0;
+  return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
 async function getStructure(id) {

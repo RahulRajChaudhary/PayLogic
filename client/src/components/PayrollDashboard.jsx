@@ -45,7 +45,8 @@ export default function PayrollDashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
-  useEffect(() => { departmentsApi.list().then(setDepartments).catch(() => {}); }, []);
+  // limit: 100 — feeds the department filter dropdown, needs every department.
+  useEffect(() => { departmentsApi.list({ limit: 100 }).then((res) => setDepartments(res.data)).catch(() => {}); }, []);
 
   function load() {
     setError('');
